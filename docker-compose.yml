@@ -3,9 +3,8 @@ services:
     build: .
     container_name: memory-sqlite-sync
     restart: unless-stopped
-    user: "1000:1000"
     volumes:
-      - ~/.claude/projects:/home/user/.claude/projects
+      - ~/.claude/projects:/claude-projects:ro
       - ~/.local/share/memory-sqlite:/data
     environment:
       - NODE_ENV=production
@@ -18,7 +17,7 @@ services:
     build: .
     container_name: memory-sqlite-sync-once
     volumes:
-      - ~/.claude/projects:/home/user/.claude/projects
+      - ~/.claude/projects:/claude-projects:ro
       - ~/.local/share/memory-sqlite:/data
     environment:
       - NODE_ENV=production

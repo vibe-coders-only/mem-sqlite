@@ -1,11 +1,11 @@
 // Claude Code WTE pipeline
 import { watchJsonl } from './watch/index.js';
-import { parseAndTransform } from './transform/index.js';
-import { executeToDatabase } from '../execute/index.js';
+import { parseAndTransform, parseMultipleEntries, getParsingStats } from './transform/index.js';
+import { executeToDatabase, executeParsedEntries } from '../execute/index.js';
 import { initializeDatabase } from '../execute/schema.js';
+import { getProjectsPath } from '../utils/paths.js';
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 
 function processJsonlFile(filePath: string) {
   const sessionId = filePath.split('/').pop()?.replace('.jsonl', '') || 'unknown';
@@ -20,12 +20,28 @@ function processJsonlFile(filePath: string) {
     const lines = content.trim().split('\n').filter(line => line.trim());
     console.log(`DEBUG: Found ${lines.length} non-empty lines`);
     
-    const messages = lines.map(line => JSON.parse(line));
-    console.log(`DEBUG: Parsed ${messages.length} JSON messages`);
+    const rawMessages = lines.map(line => JSON.parse(line));
+    console.log(`DEBUG: Parsed ${rawMessages.length} JSON messages`);
     
-    const result = executeToDatabase(messages, sessionId, filePath);
-    console.log(`DEBUG: Database operation complete - inserted: ${result.messagesInserted}, updated: ${result.messagesUpdated}, errors: ${result.errors.length}`);
-    console.log(`Synced ${result.messagesInserted} messages from ${sessionId}`);
+    // Parse messages using enhanced parser
+    const parsedEntries = parseMultipleEntries(rawMessages, filePath);
+    const stats = getParsingStats(parsedEntries);
+    
+    console.log(`DEBUG: Parsing stats - total: ${stats.total}, messages: ${stats.messages}, toolUses: ${stats.toolUses}, toolResults: ${stats.toolResults}, errors: ${stats.errors}, skipped: ${stats.skipped}`);
+    
+    // Execute to database using new method
+    const result = executeParsedEntries(parsedEntries);
+    
+    console.log(`DEBUG: Database operation complete:`);
+    console.log(`  - Messages inserted: ${result.messagesInserted}, updated: ${result.messagesUpdated}`);
+    console.log(`  - Tool uses inserted: ${result.toolUsesInserted}`);
+    console.log(`  - Tool results inserted: ${result.toolResultsInserted}`);
+    console.log(`  - Attachments inserted: ${result.attachmentsInserted}`);
+    console.log(`  - Env info inserted: ${result.envInfoInserted}`);
+    console.log(`  - Errors: ${result.errors.length}`);
+    
+    const totalInserted = result.messagesInserted + result.toolUsesInserted + result.toolResultsInserted;
+    console.log(`Synced ${totalInserted} records from ${sessionId} (${stats.toolUses} tool calls extracted)`);
     
     if (result.errors && result.errors.length > 0) {
       console.error(`Errors in ${sessionId}:`, result.errors.slice(0, 3)); // Show first 3 errors
@@ -43,12 +59,7 @@ export async function runClaudeCodeSync() {
   initializeDatabase();
   
   // Initial sync of all existing files  
-  const getBasePath = () => {
-    // In Docker container, use /home/user, otherwise use actual homedir
-    return process.env.NODE_ENV === 'production' ? '/home/user' : homedir();
-  };
-  
-  const projectsDir = join(getBasePath(), '.claude', 'projects');
+  const projectsDir = getProjectsPath();
   const projectDirs = readdirSync(projectsDir, { withFileTypes: true })
     .filter(dirent => dirent.isDirectory())
     .map(dirent => dirent.name);

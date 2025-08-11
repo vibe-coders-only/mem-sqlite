@@ -1,7 +1,6 @@
 import { readFileSync, watchFile, unwatchFile, statSync, existsSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
 import { EventEmitter } from 'events';
+import { getDatabaseWatcherLogPath } from '../utils/paths.js';
 
 export interface DatabaseChange {
   timestamp: string;
@@ -20,12 +19,7 @@ export class DatabaseWatcher extends EventEmitter {
   
   constructor(logPath?: string) {
     super();
-    const getBasePath = () => {
-      // In Docker container, use /home/user, otherwise use actual homedir
-      return process.env.NODE_ENV === 'production' ? '/home/user' : homedir();
-    };
-    
-    this.logPath = logPath || join(getBasePath(), '.local', 'share', 'memory-sqlite', 'cc_db_changes.jsonl');
+    this.logPath = logPath || getDatabaseWatcherLogPath();
   }
   
   start(): void {

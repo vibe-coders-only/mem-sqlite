@@ -1,16 +1,10 @@
 // Watch Claude Code JSONL logs
 import chokidar from 'chokidar';
-import { join } from 'path';
-import { homedir } from 'os';
 import { readdirSync } from 'fs';
+import { getProjectsPath } from '../../utils/paths.js';
 
 export function watchJsonl(callback: (filePath: string) => void) {
-  const getBasePath = () => {
-    // In Docker container, use /home/user, otherwise use actual homedir
-    return process.env.NODE_ENV === 'production' ? '/home/user' : homedir();
-  };
-  
-  const projectsDir = join(getBasePath(), '.claude', 'projects');
+  const projectsDir = getProjectsPath();
   
   const watchPattern = `${projectsDir}/**/*.jsonl`;
   console.log(`DEBUG: Setting up chokidar with pattern: ${watchPattern}`);

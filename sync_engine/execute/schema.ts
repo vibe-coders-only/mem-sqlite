@@ -1,14 +1,8 @@
 import Database from 'better-sqlite3';
-import { homedir } from 'os';
-import { join } from 'path';
 import { mkdirSync } from 'fs';
+import { getDatabasePath, getBasePath } from '../utils/paths';
 
-const getBasePath = () => {
-  // In Docker container, use /data mount, otherwise use actual homedir
-  return process.env.NODE_ENV === 'production' ? '/data' : join(homedir(), '.local', 'share', 'memory-sqlite');
-};
-
-export const DB_PATH = join(getBasePath(), 'claude_code.db');
+export const DB_PATH = getDatabasePath();
 
 export function initializeDatabase(): Database.Database {
   const dbDir = getBasePath();

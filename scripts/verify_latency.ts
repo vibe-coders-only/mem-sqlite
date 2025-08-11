@@ -2,9 +2,9 @@
 // Verify database latency for Claude Code sync
 
 import { getDatabase } from '../sync_engine/execute/schema.js';
+import { getProjectsPath } from '../sync_engine/utils/paths.js';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 
 interface LatencyCheck {
   claudeCodeLatest: string | null;
@@ -25,12 +25,7 @@ function getLatestTimestamp(db: any, query: string): string | null {
 
 function getLatestJsonlTimestamp(): string | null {
   try {
-    const getBasePath = () => {
-      // In Docker container, use /home/user, otherwise use actual homedir
-      return process.env.NODE_ENV === 'production' ? '/home/user' : homedir();
-    };
-    
-    const projectsDir = join(getBasePath(), '.claude', 'projects');
+    const projectsDir = getProjectsPath();
     
     console.log(`🔍 Scanning JSONL files in: ${projectsDir}`);
     

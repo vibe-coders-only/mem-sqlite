@@ -1,6 +1,6 @@
 import { writeFileSync, appendFileSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
-import { homedir } from 'os';
+import { dirname } from 'path';
+import { getTransactionLogPath, getBasePath } from '../utils/paths';
 
 export interface DatabaseTransaction {
   timestamp: string;
@@ -11,12 +11,7 @@ export interface DatabaseTransaction {
   changes: any;
 }
 
-const getBasePath = () => {
-  // In Docker container, use /home/user, otherwise use actual homedir
-  return process.env.NODE_ENV === 'production' ? '/home/user' : homedir();
-};
-
-const LOG_PATH = process.env.TEST_LOG_PATH || join(getBasePath(), '.local', 'share', 'memory-sqlite', 'cc_db_changes.jsonl');
+const LOG_PATH = process.env.TEST_LOG_PATH || getTransactionLogPath();
 
 export class TransactionLogger {
   private static instance: TransactionLogger;
@@ -37,7 +32,7 @@ export class TransactionLogger {
     // Ensure log directory exists
     const logDir = process.env.TEST_LOG_PATH 
       ? dirname(process.env.TEST_LOG_PATH)  // Parent dir of test log file
-      : join(getBasePath(), '.local', 'share', 'memory-sqlite');
+      : getBasePath();
     mkdirSync(logDir, { recursive: true });
   }
   
@@ -79,6 +74,28 @@ export class TransactionLogger {
     });
   }
   
+  logToolUseInsert(messageId: string, toolId: string, toolName: string): void {
+    this.logTransaction({
+      timestamp: new Date().toISOString(),
+      operation: 'insert',
+      table: 'tool_uses',
+      sessionId: 'unknown', // SessionId not available at this level
+      messageId,
+      changes: { toolId, toolName }
+    });
+  }
+  
+  logToolResultInsert(messageId: string, toolUseId: string): void {
+    this.logTransaction({
+      timestamp: new Date().toISOString(),
+      operation: 'insert',
+      table: 'tool_use_results',
+      sessionId: 'unknown', // SessionId not available at this level
+      messageId,
+      changes: { toolUseId }
+    });
+  }
+
   logBatchOperation(sessionId: string, operation: string, count: number): void {
     this.logTransaction({
       timestamp: new Date().toISOString(),

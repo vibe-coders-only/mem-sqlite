@@ -2,10 +2,15 @@ import Database from 'better-sqlite3';
 import { initializeDatabase, getDatabase } from './schema.js';
 import type { ClaudeCodeMessage, SummaryMessage, UserMessage, AssistantMessage } from '../claude_code/types.js';
 import { TransactionLogger } from './transaction_log.js';
+import type { ParsedEntry, MessageRecord, ToolUseRecord, ToolResultRecord, AttachmentRecord, EnvInfoRecord } from '../claude_code/transform/index.js';
 
 export interface ExecuteResult {
   messagesInserted: number;
   messagesUpdated: number;
+  toolUsesInserted: number;
+  toolResultsInserted: number;
+  attachmentsInserted: number;
+  envInfoInserted: number;
   errors: Error[];
 }
 
@@ -16,6 +21,10 @@ export function executeToDatabase(messages: any[], sessionId: string, sessionPat
     const result: ExecuteResult = {
       messagesInserted: 0,
       messagesUpdated: 0,
+      toolUsesInserted: 0,
+      toolResultsInserted: 0,
+      attachmentsInserted: 0,
+      envInfoInserted: 0,
       errors: []
     };
     
@@ -174,6 +183,211 @@ function retryDatabaseOperation<T>(operation: () => T, maxRetries: number = 5): 
   }
   
   throw lastError!;
+}
+
+/**
+ * Execute parsed entries to database with proper tool extraction
+ */
+export function executeParsedEntries(parsedEntries: ParsedEntry[]): ExecuteResult {
+  return retryDatabaseOperation(() => {
+    const db = initializeDatabase();
+    const logger = TransactionLogger.getInstance();
+    const result: ExecuteResult = {
+      messagesInserted: 0,
+      messagesUpdated: 0,
+      toolUsesInserted: 0,
+      toolResultsInserted: 0,
+      attachmentsInserted: 0,
+      envInfoInserted: 0,
+      errors: []
+    };
+    
+    try {
+      // Use a single transaction for the entire batch
+      const transaction = db.transaction(() => {
+        for (const parsed of parsedEntries) {
+          try {
+            // Report any parsing errors
+            if (parsed.errors.length > 0) {
+              parsed.errors.forEach(error => {
+                result.errors.push(new Error(`Parse error: ${error}`));
+              });
+            }
+            
+            // Ensure session exists
+            ensureSessionRecord(db, parsed.session, logger);
+            
+            // Insert message if present OR if we have tools that need to reference it
+            const hasToolData = parsed.toolUses.length > 0 || parsed.toolResults.length > 0;
+            if (parsed.message || hasToolData) {
+              let messageToInsert = parsed.message;
+              
+              // If we have tool data but no message record, we need to create one
+              if (!messageToInsert && hasToolData) {
+                // Find the original message ID from the first tool record
+                const firstToolId = parsed.toolUses[0]?.message_id || parsed.toolResults[0]?.message_id;
+                if (firstToolId) {
+                  // Create a minimal message record for tools to reference
+                  messageToInsert = {
+                    id: firstToolId,
+                    session_id: parsed.session.id,
+                    type: 'tool_message',
+                    timestamp: new Date().toISOString(),
+                    user_text: null,
+                    assistant_text: null,
+                    project_name: parsed.session.path || null
+                  };
+                }
+              }
+              
+              if (messageToInsert) {
+                const exists = db.prepare('SELECT id FROM messages WHERE id = ?').get(messageToInsert.id);
+                if (exists) {
+                  result.messagesUpdated++;
+                } else {
+                  insertMessageRecord(db, messageToInsert, logger);
+                  result.messagesInserted++;
+                }
+              }
+            }
+            
+            // Insert tool uses
+            for (const toolUse of parsed.toolUses) {
+              const exists = db.prepare('SELECT id FROM tool_uses WHERE id = ?').get(toolUse.id);
+              if (!exists) {
+                insertToolUseRecord(db, toolUse, logger);
+                result.toolUsesInserted++;
+              }
+            }
+            
+            // Insert tool results
+            for (const toolResult of parsed.toolResults) {
+              const exists = db.prepare('SELECT id FROM tool_use_results WHERE id = ?').get(toolResult.id);
+              if (!exists) {
+                insertToolResultRecord(db, toolResult, logger);
+                result.toolResultsInserted++;
+              }
+            }
+            
+            // Insert attachments
+            for (const attachment of parsed.attachments) {
+              const exists = db.prepare('SELECT id FROM attachments WHERE id = ?').get(attachment.id);
+              if (!exists) {
+                insertAttachmentRecord(db, attachment, logger);
+                result.attachmentsInserted++;
+              }
+            }
+            
+            // Insert env info
+            if (parsed.envInfo) {
+              const exists = db.prepare('SELECT id FROM env_info WHERE id = ?').get(parsed.envInfo.id);
+              if (!exists) {
+                insertEnvInfoRecord(db, parsed.envInfo, logger);
+                result.envInfoInserted++;
+              }
+            }
+            
+          } catch (error) {
+            result.errors.push(error as Error);
+          }
+        }
+        
+        // Log batch operation summary
+        const totalInserted = result.messagesInserted + result.toolUsesInserted + result.toolResultsInserted;
+        if (totalInserted > 0) {
+          logger.logBatchOperation('batch', 'parsed_entries', totalInserted);
+        }
+      });
+      
+      transaction();
+      
+    } catch (error) {
+      result.errors.push(error as Error);
+    } finally {
+      db.close();
+    }
+    
+    return result;
+  });
+}
+
+function ensureSessionRecord(db: Database.Database, session: { id: string; sessionId: string; sessionPath: string }, logger: TransactionLogger): void {
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO sessions (id, sessionId, sessionPath)
+    VALUES (?, ?, ?)
+  `);
+  const result = stmt.run(session.id, session.sessionId, session.sessionPath);
+  
+  if (result.changes > 0) {
+    logger.logSessionInsert(session.sessionId, session.sessionPath);
+  }
+}
+
+function insertMessageRecord(db: Database.Database, message: MessageRecord, logger: TransactionLogger): void {
+  const stmt = db.prepare(`
+    INSERT INTO messages (
+      id, sessionId, type, timestamp, isSidechain,
+      projectName, activeFile, userText, userType, userAttachments,
+      toolUseResultId, toolUseResultName, assistantRole, assistantText, assistantModel
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(
+    message.id, message.sessionId, message.type, message.timestamp, message.isSidechain ? 1 : 0,
+    message.projectName, message.activeFile, message.userText, message.userType, message.userAttachments,
+    message.toolUseResultId, message.toolUseResultName, message.assistantRole, message.assistantText, message.assistantModel
+  );
+  
+  logger.logMessageInsert(message.sessionId, message.id, message.type);
+}
+
+function insertToolUseRecord(db: Database.Database, toolUse: ToolUseRecord, logger: TransactionLogger): void {
+  const stmt = db.prepare(`
+    INSERT INTO tool_uses (id, messageId, toolId, toolName, parameters)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(toolUse.id, toolUse.messageId, toolUse.toolId, toolUse.toolName, toolUse.parameters);
+  
+  logger.logToolUseInsert(toolUse.messageId, toolUse.toolId, toolUse.toolName);
+}
+
+function insertToolResultRecord(db: Database.Database, toolResult: ToolResultRecord, logger: TransactionLogger): void {
+  const stmt = db.prepare(`
+    INSERT INTO tool_use_results (id, toolUseId, messageId, output, outputMimeType, error, errorType)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(
+    toolResult.id, toolResult.toolUseId, toolResult.messageId, 
+    toolResult.output, toolResult.outputMimeType, toolResult.error, toolResult.errorType
+  );
+  
+  logger.logToolResultInsert(toolResult.messageId, toolResult.toolUseId);
+}
+
+function insertAttachmentRecord(db: Database.Database, attachment: AttachmentRecord, logger: TransactionLogger): void {
+  const stmt = db.prepare(`
+    INSERT INTO attachments (id, messageId, type, text, url, mimeType, title, filePath)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(
+    attachment.id, attachment.messageId, attachment.type, attachment.text,
+    attachment.url, attachment.mimeType, attachment.title, attachment.filePath
+  );
+}
+
+function insertEnvInfoRecord(db: Database.Database, envInfo: EnvInfoRecord, logger: TransactionLogger): void {
+  const stmt = db.prepare(`
+    INSERT INTO env_info (id, messageId, workingDirectory, isGitRepo, platform, osVersion, todaysDate)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(
+    envInfo.id, envInfo.messageId, envInfo.workingDirectory, 
+    envInfo.isGitRepo ? 1 : 0, envInfo.platform, envInfo.osVersion, envInfo.todaysDate
+  );
 }
 
 export { initializeDatabase, getDatabase };
