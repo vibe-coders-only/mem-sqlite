@@ -225,7 +225,7 @@ export function executeParsedEntries(parsedEntries: ParsedEntry[]): ExecuteResul
               // If we have tool data but no message record, we need to create one
               if (!messageToInsert && hasToolData) {
                 // Find the original message ID from the first tool record
-                const firstToolId = parsed.toolUses[0]?.message_id || parsed.toolResults[0]?.message_id;
+                const firstToolId = parsed.toolUses[0]?.messageId || parsed.toolResults[0]?.messageId;
                 if (firstToolId) {
                   // Create a minimal message record for tools to reference
                   messageToInsert = {

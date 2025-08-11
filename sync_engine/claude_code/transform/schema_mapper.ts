@@ -194,22 +194,39 @@ export function validateRecords(records: {
 
   // Validate messages
   for (const msg of records.messages) {
-    if (!msg.id || !msg.sessionId || !msg.type || !msg.timestamp) {
-      errors.push(`Invalid message record: missing required fields for ${msg.id}`);
+    const missingFields = [];
+    if (!msg.id) missingFields.push('id');
+    if (!msg.sessionId) missingFields.push('sessionId');
+    if (!msg.type) missingFields.push('type');
+    if (!msg.timestamp) missingFields.push('timestamp');
+    
+    if (missingFields.length > 0) {
+      errors.push(`Invalid message record ${msg.id || 'unknown'}: missing fields [${missingFields.join(', ')}]`);
     }
   }
 
   // Validate tool uses
   for (const tool of records.toolUses) {
-    if (!tool.id || !tool.messageId || !tool.toolId || !tool.toolName) {
-      errors.push(`Invalid tool use record: missing required fields for ${tool.id}`);
+    const missingFields = [];
+    if (!tool.id) missingFields.push('id');
+    if (!tool.messageId) missingFields.push('messageId');
+    if (!tool.toolId) missingFields.push('toolId');
+    if (!tool.toolName) missingFields.push('toolName');
+    
+    if (missingFields.length > 0) {
+      errors.push(`Invalid tool use record ${tool.id || 'unknown'}: missing fields [${missingFields.join(', ')}]`);
     }
   }
 
   // Validate tool results
   for (const result of records.toolResults) {
-    if (!result.id || !result.toolUseId || !result.messageId) {
-      errors.push(`Invalid tool result record: missing required fields for ${result.id}`);
+    const missingFields = [];
+    if (!result.id) missingFields.push('id');
+    if (!result.toolUseId) missingFields.push('toolUseId');
+    if (!result.messageId) missingFields.push('messageId');
+    
+    if (missingFields.length > 0) {
+      errors.push(`Invalid tool result record ${result.id || 'unknown'}: missing fields [${missingFields.join(', ')}]`);
     }
   }
 
