@@ -1,0 +1,28 @@
+{
+  "name": "cc-jsonl-sqlite-sync",
+  "version": "0.1.0",
+  "description": "Minimal sync engine for Claude Code logs JSONL to SQLite",
+  "main": "index.ts",
+  "scripts": {
+    "start": "node index.ts",
+    "dev": "npx tsx index.ts",
+    "test": "vitest",
+    "cli": "npx tsx cli.ts"
+  },
+  "bin": {
+    "cc-jsonl-sqlite-sync": "./cli.ts"
+  },
+  "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "better-sqlite3": "^12.2.0",
+    "chokidar": "^4.0.3",
+    "tsx": "^4.0.0",
+    "uuid": "^11.1.0"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.1.0",
+    "vitest": "^3.2.4"
+  }
+}
