@@ -45,18 +45,26 @@ function validateQuery(sql: string): void {
 }
 
 /**
- * Add LIMIT clause if not present
+ * Add LIMIT clause if not present (safely)
  */
-function ensureLimit(sql: string, limit: number): string {
+function ensureLimit(sql: string, limit: number): { sql: string; params: number[] } {
   const normalizedSql = sql.trim().toUpperCase();
   
   // Check if LIMIT already exists
   if (normalizedSql.includes('LIMIT')) {
-    return sql;
+    return { sql, params: [] };
   }
   
-  // Add LIMIT clause
-  return `${sql.trim()} LIMIT ${limit}`;
+  // Validate limit is a safe integer
+  if (!Number.isInteger(limit) || limit < 1 || limit > 10000) {
+    throw new Error(`Invalid limit value: ${limit}`);
+  }
+  
+  // Return SQL with placeholder and separate parameter
+  return { 
+    sql: `${sql.trim()} LIMIT ?`,
+    params: [limit]
+  };
 }
 
 /**
@@ -71,12 +79,12 @@ export function executeQuery(args: QueryArgs): QueryResult {
   
   // Validate and prepare query
   validateQuery(sql);
-  const safeSql = ensureLimit(sql, actualLimit);
+  const { sql: safeSql, params } = ensureLimit(sql, actualLimit);
   
   try {
     const db = getDatabase();
     const stmt = db.prepare(safeSql);
-    const results = stmt.all();
+    const results = params.length > 0 ? stmt.all(...params) : stmt.all();
     
     return {
       query: safeSql,

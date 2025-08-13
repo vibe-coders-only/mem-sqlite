@@ -1,6 +1,7 @@
 // Watch Claude Code JSONL logs
 import chokidar from 'chokidar';
 import { readdirSync } from 'fs';
+import { join } from 'path';
 import { getProjectsPath } from '../../utils/paths.js';
 
 export function watchJsonl(callback: (filePath: string) => void) {

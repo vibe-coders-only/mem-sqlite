@@ -1,154 +1,169 @@
 # mem-sqlite
 
-Released Tue, Aug 12, 2025
-
-mem-sqlite is an MCP server to let Claude Code query your chat history, powered by a synchronization engine that transforms Claude Code JSONL conversation logs into structured SQLite databases. 
-
-TypeScript, MIT License, in beta. Anthropic will probably release a memory function for CC in three days making all of this pointless lol. This README is accurate as of Tue, Aug 12, 2025
+MCP server that enables Claude Code to query its own conversation history.
 
 ## Overview
 
-Claude Code stores conversation history as JSONL files in `~/.claude/projects/`. mem-sqlite watches these files and transforms them into queryable SQLite databases, enabling conversation search, tool analytics, and real-time monitoring.
+mem-sqlite synchronizes Claude Code's JSONL conversation logs from `~/.claude/projects/` into a structured SQLite database, exposing query capabilities through the Model Context Protocol.
 
-## Core Components
+## Features
 
-- **JSONL Watcher** - Monitors Claude Code project directories for file changes
-- **Message Parser** - Transforms JSONL records into structured data
-- **Database Engine** - SQLite operations with normalized schema
-- **MCP Server** - Model Context Protocol server for Claude Code integration
+- Real-time synchronization of conversation history
+- SQL query interface for conversation search and analytics
+- Automatic message parsing and tool extraction
+- Foreign key relationships for data integrity
+- Transaction logging for audit trails
 
-## Database Schema
+## Installation
 
-```sql
-sessions        -- Conversation sessions
-messages        -- User/assistant messages and summaries  
-tool_uses       -- Tool invocations with parameters
-tool_use_results -- Tool execution outputs and errors
-attachments     -- File attachments and metadata
-env_info        -- Environment context per message
-```
+### Prerequisites
 
-## Installation & Usage
+- Node.js 20+
+- Docker (recommended) or npm
+- Claude Code with MCP support
 
-### Docker Deployment (Recommended)
-
-Docker is the recommended deployment method with proper volume mounts:
+### Quick Start
 
 ```bash
-# Clone and build
+# Clone repository
 git clone https://github.com/alosec/mem-sqlite
 cd mem-sqlite
 
-# Start sync daemon
-docker compose up -d
+# Install dependencies
+npm install
 
-# Check status
-docker compose ps
+# Run initial sync
+npm run cli sync
+
+# Add MCP server to Claude Code
+claude mcp add memory-sqlite npm run mcp-server
+```
+
+## Usage
+
+### Docker (Production)
+
+```bash
+# Start daemon
+docker compose up -d
 
 # View logs
 docker compose logs -f
 
-# One-time sync only
-docker compose --profile sync-once up memory-sqlite-sync-once
+# Stop daemon
+docker compose down
 ```
 
-### Local Development (Optional)
-
-For development purposes only:
+### Local Development
 
 ```bash
-npm install
-npm run build
-
 # One-time sync
 npm run cli sync
 
-# Start watcher daemon  
+# Start watcher daemon
 npm run cli start
 
-# Start MCP server (separate terminal)
-npm run mcp-server
+# Run tests
+npm test
 ```
 
-### Claude Code MCP Integration
+### Query Examples
 
-Add the MCP server to your Claude Code configuration:
+Ask Claude Code natural language questions:
+- "Find all messages about React components"
+- "Show tool usage statistics for this week"
+- "Search for error messages in tool executions"
 
-```bash
-# Add the MCP server using Claude Code CLI
-claude mcp add-json '{
-  "mem-sqlite": {
-    "command": "npm", 
-    "args": ["run", "mcp-server", "--prefix", "/path/to/mem-sqlite"]
-  }
-}'
-```
+Or use direct SQL queries through the MCP interface:
 
-Replace `/path/to/mem-sqlite` with the actual path to your installation.
-
-### Querying Your Conversations
-
-Once the MCP server is configured, simply ask Claude Code to query your conversation history:
-
-```
-"Show me all conversations from the last week"
-"What tools have I used most frequently?"
-"Find conversations where I worked on React components"
-"Show me all error messages from tool executions"
-```
-
-Claude Code will automatically use the mem-sqlite MCP server to query your synchronized conversation database.
-
-## File Locations
-
-- **Source**: `~/.claude/projects/**/*.jsonl`
-- **Database**: `~/.local/share/memory-sqlite/claude_code.db`
-- **Transaction Log**: `~/.local/share/memory-sqlite/mem_db_changes.jsonl`
-
-## MCP Integration
-
-The included MCP server provides SQL query access to synchronized conversation data:
-
-```typescript
-// Query recent messages
-SELECT userText, assistantText, timestamp 
-FROM messages 
-WHERE timestamp > datetime('now', '-1 day')
+```sql
+-- Recent messages
+SELECT * FROM messages 
+WHERE timestamp > datetime('now', '-7 days')
 ORDER BY timestamp DESC;
 
-// Tool usage analytics  
-SELECT toolName, COUNT(*) as usage_count
+-- Tool usage analytics
+SELECT toolName, COUNT(*) as count
 FROM tool_uses
-GROUP BY toolName
-ORDER BY usage_count DESC;
+GROUP BY toolName;
 ```
+
+## Database Schema
+
+- `sessions` - Conversation sessions with timestamps
+- `messages` - User and assistant messages
+- `tool_uses` - Tool invocations with parameters
+- `tool_use_results` - Execution results and errors
+- `attachments` - File attachment metadata
+- `env_info` - Environment context
 
 ## Architecture
 
 ```
-Claude Code → JSONL Files → File Watcher → Parser → SQLite → MCP Server
-    ↑                                                           ↓
-User Activity                                            Claude Code Queries
+JSONL Files → Watcher → Parser → SQLite → MCP Server → Claude Code
 ```
 
-## Dependencies
+### Components
 
-- **better-sqlite3** - SQLite database operations
-- **chokidar** - File system watching
-- **@modelcontextprotocol/sdk** - MCP server implementation
-- **TypeScript** - Type safety and development experience
+**Sync Engine** (`sync_engine/`)
+- Watches for JSONL file changes
+- Parses and transforms messages
+- Manages database operations
 
-## Status
+**MCP Server** (`mcp-server/`)
+- Handles SQL queries from Claude Code
+- Provides read-only database access
+- Auto-starts sync watcher on initialization
 
-Production ready with real-time sync achieving sub-second latency. Successfully processes 500+ JSONL files with complete tool extraction and foreign key integrity.
+**CLI** (`cli.ts`)
+- Manual sync commands
+- Daemon management
+- Status monitoring
 
-## Known Issues
+## Configuration
 
-None as of this time, but surely there are a few bugs! Please consider this software in beta.
+### File Locations
 
-## Disclaimer
+- Source: `~/.claude/projects/**/*.jsonl`
+- Database: `~/.local/share/memory-sqlite/claude_code.db`
+- Logs: `~/.local/share/memory-sqlite/mem_db_changes.jsonl`
 
-The creator of this repo has taken a good amount of care to ensure safety and security in the repo but nothing is ever guaranteed in life! Please do your own due dilligence and look at the code to ensure this is something you want running on your machine. Trying out the tools, everything looks functional, but YMMV and the software is offered without warranty nor any guarantee of perfection.
+### Environment Variables
+
+- `NODE_ENV` - Set to 'production' for Docker deployment
+- `DATABASE_PATH` - Override default database location (optional)
+
+## Development
+
+### Build from Source
+
+```bash
+npm run build
+npm test
+```
+
+### Project Structure
+
+```
+mem-sqlite/
+├── mcp-server/      # MCP server implementation
+├── sync_engine/     # JSONL sync and parsing
+├── database/        # Connection management
+├── tests/           # Test suites
+└── cli.ts           # CLI interface
+```
+
+## Troubleshooting
+
+### Database not syncing
+- Ensure Claude Code has created conversation files in `~/.claude/projects/`
+- Check file permissions on source and destination directories
+- Run `npm run cli sync` for manual synchronization
+
+### MCP server not responding
+- Verify installation with `claude mcp list`
+- Check logs with `docker compose logs` or console output
+- Ensure database exists at `~/.local/share/memory-sqlite/claude_code.db`
 
 ## License
 

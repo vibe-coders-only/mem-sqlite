@@ -14,7 +14,9 @@ export interface ToolResultData {
   toolUseId: string;
   messageId: string;
   output: string | null;
+  outputMimeType: string | null;
   error: string | null;
+  errorType: string | null;
 }
 
 export interface CleanedMessage {
@@ -97,12 +99,29 @@ export function extractToolResults(message: any): {
   for (const contentItem of message.message.content) {
     if (contentItem.type === 'tool_result') {
       // Extract tool result data
+      // Handle content that might be array or object
+      let outputContent: string | null = null;
+      if (contentItem.content) {
+        if (typeof contentItem.content === 'string') {
+          outputContent = contentItem.content;
+        } else if (Array.isArray(contentItem.content)) {
+          // Handle array of content items (e.g., text blocks)
+          outputContent = contentItem.content
+            .map((item: any) => typeof item === 'string' ? item : (item.text || JSON.stringify(item)))
+            .join('\n');
+        } else {
+          outputContent = JSON.stringify(contentItem.content);
+        }
+      }
+      
       const toolResult: ToolResultData = {
         id: uuidv4(),
         toolUseId: contentItem.tool_use_id,
         messageId: message.uuid,
-        output: contentItem.content || null,
-        error: contentItem.error || null
+        output: outputContent,
+        outputMimeType: contentItem.content_type || null,
+        error: contentItem.error || null,
+        errorType: contentItem.error ? 'tool_error' : null
       };
       toolResults.push(toolResult);
     } else {

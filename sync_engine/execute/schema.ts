@@ -108,8 +108,20 @@ function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_messages_sessionId ON messages(sessionId);
     CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
     CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
+    CREATE INDEX IF NOT EXISTS idx_messages_sessionId_timestamp ON messages(sessionId, timestamp);
+    
+    -- Foreign key indexes for better join performance
     CREATE INDEX IF NOT EXISTS idx_tool_uses_messageId ON tool_uses(messageId);
+    CREATE INDEX IF NOT EXISTS idx_tool_uses_toolId ON tool_uses(toolId);
+    CREATE INDEX IF NOT EXISTS idx_tool_use_results_toolUseId ON tool_use_results(toolUseId);
+    CREATE INDEX IF NOT EXISTS idx_tool_use_results_messageId ON tool_use_results(messageId);
     CREATE INDEX IF NOT EXISTS idx_attachments_messageId ON attachments(messageId);
+    CREATE INDEX IF NOT EXISTS idx_env_info_messageId ON env_info(messageId);
+    
+    -- Composite indexes for common query patterns
+    CREATE INDEX IF NOT EXISTS idx_tool_uses_name_messageId ON tool_uses(toolName, messageId);
+    CREATE INDEX IF NOT EXISTS idx_messages_type_timestamp ON messages(type, timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created DESC);
   `);
 }
 

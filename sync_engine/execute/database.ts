@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
-import { initializeDatabase, getDatabase } from './schema.js';
+import { initializeDatabase } from './schema.js';
+import { getDatabase } from '../../database/connection.js';
 import type { ClaudeCodeMessage, SummaryMessage, UserMessage, AssistantMessage } from '../claude_code/types.js';
 import { TransactionLogger } from './transaction_log.js';
 import type { ParsedEntry, MessageRecord, ToolUseRecord, ToolResultRecord, AttachmentRecord, EnvInfoRecord } from '../claude_code/transform/index.js';
@@ -16,7 +17,7 @@ export interface ExecuteResult {
 
 export function executeToDatabase(messages: any[], sessionId: string, sessionPath: string): ExecuteResult {
   return retryDatabaseOperation(() => {
-    const db = initializeDatabase();
+    const db = getDatabase({ readonly: false });
     const logger = TransactionLogger.getInstance();
     const result: ExecuteResult = {
       messagesInserted: 0,
@@ -59,8 +60,6 @@ export function executeToDatabase(messages: any[], sessionId: string, sessionPat
       
     } catch (error) {
       result.errors.push(error as Error);
-    } finally {
-      db.close();
     }
     
     return result;
@@ -190,7 +189,7 @@ function retryDatabaseOperation<T>(operation: () => T, maxRetries: number = 5): 
  */
 export function executeParsedEntries(parsedEntries: ParsedEntry[]): ExecuteResult {
   return retryDatabaseOperation(() => {
-    const db = initializeDatabase();
+    const db = getDatabase({ readonly: false });
     const logger = TransactionLogger.getInstance();
     const result: ExecuteResult = {
       messagesInserted: 0,
@@ -263,7 +262,7 @@ export function executeParsedEntries(parsedEntries: ParsedEntry[]): ExecuteResul
             for (const toolUse of parsed.toolUses) {
               const exists = db.prepare('SELECT id FROM tool_uses WHERE id = ?').get(toolUse.id);
               if (!exists) {
-                insertToolUseRecord(db, toolUse, logger);
+                insertToolUseRecord(db, toolUse, parsed.session.id, logger);
                 result.toolUsesInserted++;
               }
             }
@@ -272,7 +271,7 @@ export function executeParsedEntries(parsedEntries: ParsedEntry[]): ExecuteResul
             for (const toolResult of parsed.toolResults) {
               const exists = db.prepare('SELECT id FROM tool_use_results WHERE id = ?').get(toolResult.id);
               if (!exists) {
-                insertToolResultRecord(db, toolResult, logger);
+                insertToolResultRecord(db, toolResult, parsed.session.id, logger);
                 result.toolResultsInserted++;
               }
             }
@@ -311,8 +310,6 @@ export function executeParsedEntries(parsedEntries: ParsedEntry[]): ExecuteResul
       
     } catch (error) {
       result.errors.push(error as Error);
-    } finally {
-      db.close();
     }
     
     return result;
@@ -342,36 +339,46 @@ function insertMessageRecord(db: Database.Database, message: MessageRecord, logg
   
   stmt.run(
     message.id, message.sessionId, message.type, message.timestamp, message.isSidechain ? 1 : 0,
-    message.projectName, message.activeFile, message.userText, message.userType, message.userAttachments,
-    message.toolUseResultId, message.toolUseResultName, message.assistantRole, message.assistantText, message.assistantModel
+    message.projectName || null, message.activeFile || null, message.userText || null, 
+    message.userType || null, message.userAttachments || null,
+    message.toolUseResultId || null, message.toolUseResultName || null, 
+    message.assistantRole || null, message.assistantText || null, message.assistantModel || null
   );
   
   logger.logMessageInsert(message.sessionId, message.id, message.type);
 }
 
-function insertToolUseRecord(db: Database.Database, toolUse: ToolUseRecord, logger: TransactionLogger): void {
+function insertToolUseRecord(db: Database.Database, toolUse: ToolUseRecord, sessionId: string, logger: TransactionLogger): void {
   const stmt = db.prepare(`
     INSERT INTO tool_uses (id, messageId, toolId, toolName, parameters)
     VALUES (?, ?, ?, ?, ?)
   `);
   
-  stmt.run(toolUse.id, toolUse.messageId, toolUse.toolId, toolUse.toolName, toolUse.parameters);
+  stmt.run(
+    toolUse.id, toolUse.messageId, toolUse.toolId || null, 
+    toolUse.toolName || null, toolUse.parameters || null
+  );
   
-  logger.logToolUseInsert(toolUse.messageId, toolUse.toolId, toolUse.toolName);
+  logger.logToolUseInsert(sessionId, toolUse.messageId, toolUse.toolId, toolUse.toolName);
 }
 
-function insertToolResultRecord(db: Database.Database, toolResult: ToolResultRecord, logger: TransactionLogger): void {
+function insertToolResultRecord(db: Database.Database, toolResult: ToolResultRecord, sessionId: string, logger: TransactionLogger): void {
   const stmt = db.prepare(`
     INSERT INTO tool_use_results (id, toolUseId, messageId, output, outputMimeType, error, errorType)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   
   stmt.run(
-    toolResult.id, toolResult.toolUseId, toolResult.messageId, 
-    toolResult.output, toolResult.outputMimeType, toolResult.error, toolResult.errorType
+    toolResult.id || null, 
+    toolResult.toolUseId || null, 
+    toolResult.messageId || null, 
+    toolResult.output || null,
+    toolResult.outputMimeType || null, 
+    toolResult.error || null, 
+    toolResult.errorType || null
   );
   
-  logger.logToolResultInsert(toolResult.messageId, toolResult.toolUseId);
+  logger.logToolResultInsert(sessionId, toolResult.messageId, toolResult.toolUseId);
 }
 
 function insertAttachmentRecord(db: Database.Database, attachment: AttachmentRecord, logger: TransactionLogger): void {
@@ -381,8 +388,8 @@ function insertAttachmentRecord(db: Database.Database, attachment: AttachmentRec
   `);
   
   stmt.run(
-    attachment.id, attachment.messageId, attachment.type, attachment.text,
-    attachment.url, attachment.mimeType, attachment.title, attachment.filePath
+    attachment.id, attachment.messageId, attachment.type || null, attachment.text || null,
+    attachment.url || null, attachment.mimeType || null, attachment.title || null, attachment.filePath || null
   );
 }
 
@@ -393,9 +400,9 @@ function insertEnvInfoRecord(db: Database.Database, envInfo: EnvInfoRecord, logg
   `);
   
   stmt.run(
-    envInfo.id, envInfo.messageId, envInfo.workingDirectory, 
-    envInfo.isGitRepo ? 1 : 0, envInfo.platform, envInfo.osVersion, envInfo.todaysDate
+    envInfo.id, envInfo.messageId, envInfo.workingDirectory || null, 
+    envInfo.isGitRepo ? 1 : 0, envInfo.platform || null, 
+    envInfo.osVersion || null, envInfo.todaysDate || null
   );
 }
 
-export { initializeDatabase, getDatabase };

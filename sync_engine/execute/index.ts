@@ -1,2 +1,3 @@
-export { executeToDatabase, executeParsedEntries, initializeDatabase } from './database.js';
+export { executeToDatabase, executeParsedEntries } from './database.js';
 export type { ExecuteResult } from './database.js';
+export { initializeDatabase, getDatabase } from './schema.js';

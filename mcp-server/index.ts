@@ -17,6 +17,11 @@ import {
 import { TOOL_SCHEMAS } from './tools/schema.js';
 import { handleQueryMemory } from './tools/handlers.js';
 import { getDatabasePath } from '../sync_engine/utils/paths.js';
+import { startWatching } from '../sync_engine/claude_code/index.js';
+import type { FSWatcher } from 'chokidar';
+
+// Track watcher instance for cleanup
+let syncWatcher: FSWatcher | null = null;
 
 // Create server instance
 const server = new Server(
@@ -73,17 +78,41 @@ async function main() {
   // Log startup info to stderr so it doesn't interfere with MCP protocol
   console.error('mem-sqlite MCP server started');
   console.error(`Database path: ${getDatabasePath()}`);
+  
+  // Start the sync watcher for real-time updates
+  try {
+    console.error('Starting sync watcher for real-time updates...');
+    syncWatcher = await startWatching();
+    console.error('Sync watcher started successfully');
+  } catch (error) {
+    console.error('Warning: Failed to start sync watcher:', error);
+    console.error('MCP server will continue but messages won\'t be synced automatically');
+  }
 }
 
 // Handle cleanup on exit
 process.on('SIGINT', async () => {
   console.error('Shutting down mem-sqlite MCP server...');
+  
+  // Stop the sync watcher
+  if (syncWatcher) {
+    console.error('Stopping sync watcher...');
+    await syncWatcher.close();
+  }
+  
   await server.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.error('Shutting down mem-sqlite MCP server...');
+  
+  // Stop the sync watcher
+  if (syncWatcher) {
+    console.error('Stopping sync watcher...');
+    await syncWatcher.close();
+  }
+  
   await server.close();
   process.exit(0);
 });

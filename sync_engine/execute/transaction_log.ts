@@ -11,10 +11,9 @@ export interface DatabaseTransaction {
   changes: any;
 }
 
-const LOG_PATH = process.env.TEST_LOG_PATH || getTransactionLogPath();
-
 export class TransactionLogger {
   private static instance: TransactionLogger;
+  private logPath: string;
   
   static getInstance(): TransactionLogger {
     if (!TransactionLogger.instance) {
@@ -29,10 +28,9 @@ export class TransactionLogger {
   }
   
   private constructor() {
+    this.logPath = process.env.TEST_LOG_PATH || getTransactionLogPath();
     // Ensure log directory exists
-    const logDir = process.env.TEST_LOG_PATH 
-      ? dirname(process.env.TEST_LOG_PATH)  // Parent dir of test log file
-      : getBasePath();
+    const logDir = dirname(this.logPath);
     mkdirSync(logDir, { recursive: true });
   }
   
@@ -46,7 +44,7 @@ export class TransactionLogger {
     const jsonLine = JSON.stringify(logEntry) + '\n';
     
     try {
-      appendFileSync(LOG_PATH, jsonLine, 'utf8');
+      appendFileSync(this.logPath, jsonLine, 'utf8');
       console.log(`DB_LOG: ${transaction.operation} ${transaction.table} for session ${transaction.sessionId}`);
     } catch (error) {
       console.error('Failed to write transaction log:', error);
@@ -74,23 +72,23 @@ export class TransactionLogger {
     });
   }
   
-  logToolUseInsert(messageId: string, toolId: string, toolName: string): void {
+  logToolUseInsert(sessionId: string, messageId: string, toolId: string, toolName: string): void {
     this.logTransaction({
       timestamp: new Date().toISOString(),
       operation: 'insert',
       table: 'tool_uses',
-      sessionId: 'unknown', // SessionId not available at this level
+      sessionId,
       messageId,
       changes: { toolId, toolName }
     });
   }
   
-  logToolResultInsert(messageId: string, toolUseId: string): void {
+  logToolResultInsert(sessionId: string, messageId: string, toolUseId: string): void {
     this.logTransaction({
       timestamp: new Date().toISOString(),
       operation: 'insert',
       table: 'tool_use_results',
-      sessionId: 'unknown', // SessionId not available at this level
+      sessionId,
       messageId,
       changes: { toolUseId }
     });
@@ -107,6 +105,6 @@ export class TransactionLogger {
   }
   
   getLogPath(): string {
-    return LOG_PATH;
+    return this.logPath;
   }
 }
