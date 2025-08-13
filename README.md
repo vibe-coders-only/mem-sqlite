@@ -1,8 +1,10 @@
 # mem-sqlite
 
-`mem-sqlite` is an MCP server to let Claude Code query your chat history, powered by a synchronization engine that transforms Claude Code JSONL conversation logs into structured SQLite databases. 
+Released Tue, Aug 12, 2025
 
-TypeScript, MIT License, in beta. This README is accurate as of Tue, Aug 12, 2025
+mem-sqlite is an MCP server to let Claude Code query your chat history, powered by a synchronization engine that transforms Claude Code JSONL conversation logs into structured SQLite databases. 
+
+TypeScript, MIT License, in beta. Anthropic will probably release a memory function for CC in three days making all of this pointless lol. This README is accurate as of Tue, Aug 12, 2025
 
 ## Overview
 
@@ -30,7 +32,24 @@ env_info        -- Environment context per message
 
 ```bash
 npm install
+npm run build
 ```
+
+### Claude Code MCP Integration
+
+Add the MCP server to your Claude Code configuration:
+
+```bash
+# Add the MCP server using Claude Code CLI
+claude mcp add-json '{
+  "mem-sqlite": {
+    "command": "npm", 
+    "args": ["run", "mcp-server", "--prefix", "/path/to/mem-sqlite"]
+  }
+}'
+```
+
+Replace `/path/to/mem-sqlite` with the actual path to your mem-sqlite installation.
 
 ## Usage
 
