@@ -7,12 +7,14 @@
     "start": "node index.ts",
     "dev": "npx tsx index.ts",
     "test": "vitest",
-    "cli": "npx tsx cli.ts"
+    "cli": "npx tsx cli.ts",
+    "mcp-server": "npx tsx mcp-server/index.ts"
   },
   "bin": {
     "mem-sqlite": "./cli.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "@types/uuid": "^10.0.0",
     "better-sqlite3": "^12.2.0",
     "chokidar": "^4.0.3",
