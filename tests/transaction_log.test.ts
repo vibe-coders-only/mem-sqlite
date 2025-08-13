@@ -12,7 +12,7 @@ describe('Transaction Logger', () => {
   beforeEach(() => {
     // Create unique test directory for each test
     testDir = join(tmpdir(), `memory-sqlite-sync-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-    testLogPath = join(testDir, 'test_db_changes.jsonl');
+    testLogPath = join(testDir, 'mem_db_changes.jsonl');
     mkdirSync(testDir, { recursive: true });
     
     // Set test environment

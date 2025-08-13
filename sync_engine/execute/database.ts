@@ -230,12 +230,20 @@ export function executeParsedEntries(parsedEntries: ParsedEntry[]): ExecuteResul
                   // Create a minimal message record for tools to reference
                   messageToInsert = {
                     id: firstToolId,
-                    session_id: parsed.session.id,
+                    sessionId: parsed.session.id,
                     type: 'tool_message',
                     timestamp: new Date().toISOString(),
-                    user_text: null,
-                    assistant_text: null,
-                    project_name: parsed.session.path || null
+                    isSidechain: false,
+                    projectName: parsed.session.sessionPath || null,
+                    activeFile: null,
+                    userText: null,
+                    userType: null,
+                    userAttachments: null,
+                    toolUseResultId: null,
+                    toolUseResultName: null,
+                    assistantRole: null,
+                    assistantText: null,
+                    assistantModel: null
                   };
                 }
               }

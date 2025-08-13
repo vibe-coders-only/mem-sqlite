@@ -34,12 +34,12 @@ export function getDatabasePath(): string {
  * Get the transaction log file path
  */
 export function getTransactionLogPath(): string {
-  return join(getBasePath(), 'cc_db_changes.jsonl');
+  return join(getBasePath(), 'mem_db_changes.jsonl');
 }
 
 /**
  * Get the database watcher log path
  */
 export function getDatabaseWatcherLogPath(): string {
-  return join(getBasePath(), 'cc_db_changes.jsonl');
+  return join(getBasePath(), 'mem_db_changes.jsonl');
 }

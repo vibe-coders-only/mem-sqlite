@@ -1,5 +1,5 @@
 {
-  "name": "cc-jsonl-sqlite-sync",
+  "name": "mem-sqlite",
   "version": "0.1.0",
   "description": "Minimal sync engine for Claude Code logs JSONL to SQLite",
   "main": "index.ts",
@@ -10,7 +10,7 @@
     "cli": "npx tsx cli.ts"
   },
   "bin": {
-    "cc-jsonl-sqlite-sync": "./cli.ts"
+    "mem-sqlite": "./cli.ts"
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",

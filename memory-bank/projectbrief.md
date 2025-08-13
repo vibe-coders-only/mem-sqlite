@@ -1,8 +1,8 @@
-# CC-JSONL-SQLite-Sync Project Brief
+# mem-sqlite Project Brief
 
 ## Project Overview
 
-**CC-JSONL-SQLite-Sync** is a standalone synchronization engine that transforms Claude Code JSONL conversation logs into structured SQLite databases. This project evolved from the working `cafe-db-sync` system, rebranded and refactored to operate under the "memory-sqlite" namespace.
+**mem-sqlite** is a standalone synchronization engine that transforms Claude Code JSONL conversation logs into structured SQLite databases. This project evolved from the working `cafe-db-sync` system, rebranded and refactored to operate under the "memory-sqlite" namespace.
 
 ## Core Purpose
 
@@ -33,7 +33,7 @@ Transform Claude Code conversation logs (JSONL format) into queryable SQLite dat
 ```
 - Source files: TypeScript modules in sync_engine/
 - Database location: ~/.local/share/memory-sqlite/claude_code.db
-- Transaction logs: ~/.local/share/memory-sqlite/cc_db_changes.jsonl
+- Transaction logs: ~/.local/share/memory-sqlite/mem_db_changes.jsonl
 - JSONL source: ~/.claude/projects/**/*.jsonl
 ```
 

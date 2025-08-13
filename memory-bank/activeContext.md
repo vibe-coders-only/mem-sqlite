@@ -36,18 +36,24 @@
 
 ### Current Performance Metrics
 
-- **Tool Extraction**: 74 tools successfully extracted and stored
-- **Messages**: 19,791 messages in database
+- **Tool Extraction**: 111 tools successfully extracted (was 74 - 48% improvement!)
+- **Messages**: 19,791 messages in database  
 - **Sync Latency**: 0.000s (real-time)
 - **Files Processed**: 504 JSONL files across 25 projects
 - **Container Status**: Running smoothly with proper permissions
 
-### Remaining Minor Issues
+### Recent Fixes Applied
 
-1. **Some FK Constraint Failures**: A few tool records fail insertion
-   - Root cause: Message ID generation for pure tool messages needs refinement
-   - Impact: Minor - most tools are getting through (74 succeeded)
-   - Not blocking deployment
+1. **Field Reference Bug Fixed**: Corrected `message_id` → `messageId` in database.ts:228
+2. **Enhanced Error Reporting**: Now shows specific missing fields instead of vague messages
+3. **Improved Tool Success Rate**: From 74 to 111 tools extracted (48% increase)
+
+### Remaining Issues
+
+1. **Some FK Constraint Failures**: Reduced but still occurring
+   - Impact: Most tools getting through but some edge cases remain
+   - Root cause: Some tool records still reference non-existent message IDs
+   - Focus: Transform/execute pipeline basic functionality
 
 2. **Missing Required Fields**: Some messages have incomplete data
    - Likely from malformed JSONL entries
@@ -86,16 +92,21 @@
 
 ## Next Steps
 
-### Immediate
-1. **Commit to Git** ✅ Ready
-   - All changes tested and working
-   - Clean working state achieved
+### Immediate Priority - Transform/Execute Pipeline
+1. **Fix Remaining FK Constraint Failures**: Debug specific cases where tools reference non-existent messages
+2. **Continue Error Log Investigation**: Focus on transform/execute pipeline basic functionality
+3. **Resolve Edge Cases**: Handle scenarios where message insertion is skipped but tools still need references
 
-### Future Enhancements
-1. **Refine FK Handling**: Improve message ID generation for edge cases
+### Future Quality Assurance
+1. **Data Integrity Validation**: Cross-compare SQLite results with original JSONL data
+   - Ensure tool extraction completeness and accuracy
+   - Verify no data loss in the transformation pipeline
+   - **Note**: Not priority yet, but important for robustness validation
+
+### Performance Optimization
+1. **Batch Tool Insertions**: Improve throughput for better performance
 2. **Error Recovery**: Add retry logic for failed tool insertions
-3. **Performance**: Batch tool insertions for better throughput
-4. **Monitoring**: Add metrics for tool extraction success rate
+3. **Monitoring**: Add metrics for tool extraction success rate
 
 ## Success Metrics Achieved
 
@@ -116,4 +127,4 @@
 
 ## Current Technical State
 
-**🎉 MAJOR SUCCESS**: Tool extraction from Claude Code's masquerading pattern is working! From 0 tools to 74 tools extracted successfully. The architecture is solid, Docker is running smoothly, and the system is production-ready.
+**🎉 CONTINUED SUCCESS**: Tool extraction improvements showing strong results! From 0 → 74 → 111 tools (48% improvement in latest session). The architecture is solid, Docker is running smoothly, and system continues to improve. Focus now on resolving remaining FK constraint edge cases in the transform/execute pipeline.

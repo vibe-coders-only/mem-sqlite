@@ -12,7 +12,7 @@ describe('Database Watcher', () => {
   beforeEach(() => {
     // Create unique test directory for each test
     testDir = join(tmpdir(), `memory-sqlite-watcher-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-    testLogPath = join(testDir, 'test_db_changes.jsonl');
+    testLogPath = join(testDir, 'mem_db_changes.jsonl');
     mkdirSync(testDir, { recursive: true });
     
     watcher = new DatabaseWatcher(testLogPath);
@@ -88,7 +88,7 @@ describe('Database Watcher', () => {
       logId: 'test-log-id'
     };
     
-    appendFileSync(testLogPath, JSON.stringify(logEntry) + '\\n');
+    appendFileSync(testLogPath, JSON.stringify(logEntry) + '\n');
     
     const change = await changePromise;
     expect(change).toEqual(logEntry);
@@ -113,7 +113,7 @@ describe('Database Watcher', () => {
       logId: 'test-log-id-2'
     };
     
-    appendFileSync(testLogPath, JSON.stringify(logEntry) + '\\n');
+    appendFileSync(testLogPath, JSON.stringify(logEntry) + '\n');
     
     const change = await messageInsertPromise;
     expect(change).toEqual(logEntry);
@@ -145,7 +145,7 @@ describe('Database Watcher', () => {
       sessionId: 'session-1',
       changes: { sessionPath: '/test/path' },
       logId: 'log-1'
-    }) + '\\n');
+    }) + '\n');
     
     // Test message insert
     appendFileSync(testLogPath, JSON.stringify({
@@ -156,7 +156,7 @@ describe('Database Watcher', () => {
       messageId: 'msg-1',
       changes: { type: 'user' },
       logId: 'log-2'
-    }) + '\\n');
+    }) + '\n');
     
     // Test batch operation
     appendFileSync(testLogPath, JSON.stringify({
@@ -166,7 +166,7 @@ describe('Database Watcher', () => {
       sessionId: 'session-1',
       changes: { operation: 'sync_complete', count: 5 },
       logId: 'log-3'
-    }) + '\\n');
+    }) + '\n');
     
     const [sessionChange, messageChange, batchChange] = await Promise.all([
       sessionInsertPromise,
@@ -188,7 +188,7 @@ describe('Database Watcher', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     
     // Add malformed JSON
-    appendFileSync(testLogPath, 'invalid json\\n');
+    appendFileSync(testLogPath, 'invalid json\n');
     
     // Add valid JSON after malformed
     const validEntry = {
@@ -204,7 +204,7 @@ describe('Database Watcher', () => {
       watcher.once('change', resolve);
     });
     
-    appendFileSync(testLogPath, JSON.stringify(validEntry) + '\\n');
+    appendFileSync(testLogPath, JSON.stringify(validEntry) + '\n');
     
     const change = await changePromise;
     expect(change).toEqual(validEntry);
@@ -232,7 +232,7 @@ describe('Database Watcher', () => {
       logId: `log-${i}`
     }));
     
-    const content = entries.map(e => JSON.stringify(e)).join('\\n') + '\\n';
+    const content = entries.map(e => JSON.stringify(e)).join('\n') + '\n';
     appendFileSync(testLogPath, content);
     
     // Wait for processing

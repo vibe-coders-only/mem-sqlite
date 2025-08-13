@@ -49,9 +49,9 @@ export function extractToolUses(message: any): {
     if (contentItem.type === 'tool_use') {
       // Extract tool use data
       const toolUse: ToolUseData = {
-        id: uuidv4(),
+        id: contentItem.id, // Use original JSONL tool_use.id so tool_results can reference it
         messageId: message.uuid,
-        toolId: contentItem.id,
+        toolId: contentItem.id, // Keep original ID for reference
         toolName: contentItem.name,
         parameters: JSON.stringify(contentItem.input || {})
       };
