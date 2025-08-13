@@ -28,11 +28,46 @@ attachments     -- File attachments and metadata
 env_info        -- Environment context per message
 ```
 
-## Installation
+## Installation & Usage
+
+### Docker Deployment (Recommended)
+
+Docker is the recommended deployment method with proper volume mounts:
+
+```bash
+# Clone and build
+git clone https://github.com/alosec/mem-sqlite
+cd mem-sqlite
+
+# Start sync daemon
+docker compose up -d
+
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs -f
+
+# One-time sync only
+docker compose --profile sync-once up memory-sqlite-sync-once
+```
+
+### Local Development (Optional)
+
+For development purposes only:
 
 ```bash
 npm install
 npm run build
+
+# One-time sync
+npm run cli sync
+
+# Start watcher daemon  
+npm run cli start
+
+# Start MCP server (separate terminal)
+npm run mcp-server
 ```
 
 ### Claude Code MCP Integration
@@ -49,35 +84,20 @@ claude mcp add-json '{
 }'
 ```
 
-Replace `/path/to/mem-sqlite` with the actual path to your mem-sqlite installation.
+Replace `/path/to/mem-sqlite` with the actual path to your installation.
 
-## Usage
+### Querying Your Conversations
 
-### CLI Commands
+Once the MCP server is configured, simply ask Claude Code to query your conversation history:
 
-```bash
-# One-time sync of all JSONL files
-npm run cli sync
-
-# Start real-time watcher daemon
-npm run cli start
-
-# Start MCP server
-npm run mcp-server
+```
+"Show me all conversations from the last week"
+"What tools have I used most frequently?"
+"Find conversations where I worked on React components"
+"Show me all error messages from tool executions"
 ```
 
-### Docker Deployment
-
-```bash
-# Start sync daemon
-docker compose up -d
-
-# Check status
-docker compose ps
-
-# View logs
-docker compose logs -f
-```
+Claude Code will automatically use the mem-sqlite MCP server to query your synchronized conversation database.
 
 ## File Locations
 
